@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Форма пользователя</title>
+</head>
+<body>
+    <h1 th:text="${user.id == null} ? 'Создание пользователя' : 'Редактирование пользователя'"></h1>
+    <form th:action="@{/users/save}" method="post" th:object="${user}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+        <input type="hidden" th:field="${user.id}" />
+
+        <div>
+            <label for="name">Имя:</label>
+            <input type="text" id="name" th:field="${user.name}" required/>
+            <hr>
+        </div>
+
+        <div>
+            <label>Пол:</label><br>
+            <label>
+                <input type="radio" th:field="${user.sex}" value="Male" required/> Мужской
+            </label>
+            <label>
+                <input type="radio" th:field="${user.sex}" value="Female" /> Женский
+            </label>
+            <hr>
+        </div>
+
+        <div>
+            <label for="age">Возраст:</label><br>
+            <input type="number" id="age" th:field="${user.age}" required/>
+            <hr>
+        </div>
+
+        <div>
+            <label for="password">Пароль:</label>
+            <input type="password"
+                   id="password"
+                   th:field="${user.password}"
+                   th:required="${user.id == null}"
+                   placeholder="Оставьте пустым, если не хотите менять пароль"
+                   th:placeholder="${user.id != null} ? 'Оставьте пустым, если не хотите менять пароль' : ''" />
+            <small th:if="${user.id != null}">(Оставьте пустым, если не хотите менять пароль)</small>
+            <hr>
+        </div>
+
+        <div>
+            <button type="submit">Сохранить</button>
+            <hr>
+        </div>
+    </form>
+    <div>
+        <form th:action="@{/logout}" method="post">
+            <button type="submit">Выйти</button>
+        </form>
+    </div>
+</body>
+</html>

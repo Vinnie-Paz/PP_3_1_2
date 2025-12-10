@@ -1,73 +1,99 @@
-package ru.kata.spring.boot_security.demo.controller;
+package ru.kata.spring.boot_security.demo.controllers;
 
+/*
+AdminController предназначен для пользователей с ролью ROLE_ADMIN
+Админ может менять свои данные по желанию
+Админ может создавать, удалять, изменять новых или других user'ов
+*/
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import ru.kata.spring.boot_security.demo.entitys.Role;
-import ru.kata.spring.boot_security.demo.entitys.User;
-import ru.kata.spring.boot_security.demo.service.RoleService;
-import ru.kata.spring.boot_security.demo.service.UserService;
+import ru.kata.spring.boot_security.demo.hiber.models.User;
+import ru.kata.spring.boot_security.demo.hiber.services.RoleService;
+import ru.kata.spring.boot_security.demo.hiber.services.UserService;
 
-import java.util.HashSet;
+import java.security.Principal;
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
+import java.util.logging.Logger;
 
 @Controller
 @RequestMapping("/admin")
 public class AdminController {
 
+    private static final Logger LOGGER = Logger.getLogger(AdminController.class.getName());
     private final UserService userService;
     private final RoleService roleService;
 
+    @Autowired
     public AdminController(UserService userService, RoleService roleService) {
         this.userService = userService;
         this.roleService = roleService;
     }
 
-    @GetMapping("/user-list")
-    public String printUsers(Model model) {
-        List<User> users = userService.findAll();
-        model.addAttribute("users", users);
-        return "admin";
-    }
-
-    @GetMapping("/addUser")
-    public String addUserPage(Model model) {
-        List<Role> roles = roleService.findAllRoles();
-        roles.forEach(role -> System.out.println("Role: " + role.getRoleName()));
-        model.addAttribute("user", new User());
-        model.addAttribute("roles", roles);
-        return "add-user";
-    }
-
-    @PostMapping("/addUser")
-    public String addUser(@ModelAttribute User user) {
-        Set<Role> userRoles = new HashSet<>();
-        for (Long roleId : user.getRoles().stream().map(Role::getId).toList()) {
-            userRoles.add(roleService.findRoleById(roleId));
+    @GetMapping("")
+    public String allUser(Model model) {
+        List<User> userList = userService.getAllUser();
+        model.addAttribute("userList", userList);
+        if (userList.isEmpty()) {
+            model.addAttribute("isEmpty", true);
         }
-        user.setRoles(userRoles);
-        userService.save(user);
-        return "redirect:/admin/user-list";
+        return "admin/allUsers";
     }
 
-    @GetMapping("/edit/{id}")
-    public String editUser(Model model, @PathVariable("id") Long id) {
-        User user = userService.findById(id);
-        model.addAttribute("user", user);
-        model.addAttribute("roles", roleService.findAllRoles());
-        return "admin-edit-user";
+    @GetMapping("/info")
+    public String userInfo(@RequestParam("id") Long id, Model model) {
+        Optional<User> user = userService.getUserById(id);
+        if (user.isEmpty()) {
+            return "userNotFound";
+        }
+        model.addAttribute("user", user.get());
+        return "admin/userInfo";
     }
 
-    @PostMapping("/update/{id}")
-    public String updateUser(@PathVariable Long id, @ModelAttribute("user") User user) {
-        userService.update(id,user);
-        return "redirect:/admin/user-list";
+    @GetMapping("/create")
+    public String createUserForm(Model model) {
+        model.addAttribute("user", new User());
+        model.addAttribute("roles", roleService.getAllRoles());
+        return "admin/userForm";
     }
 
-    @PostMapping("/delete/{id}")
-    public String deleteUser(@PathVariable Long id) {
+    @GetMapping("/update")
+    public String updateUserForm(@RequestParam("id") Long id, Model model) {
+        Optional<User> user = userService.getUserById(id);
+        if (user.isEmpty()) {
+            LOGGER.warning(String.format("User id = {%d} not found", id));
+            return "userNotFound";
+        }
+        model.addAttribute("user", user.get());
+        model.addAttribute("roles", roleService.getAllRoles());
+        return "admin/userForm";
+    }
+
+    @PostMapping("/save")
+    public String saveUser(@ModelAttribute("user") User user) {
+
+        if (user.getId() == null) {
+            userService.save(user);
+            LOGGER.info("User create: " + user);
+        } else {
+            userService.update(user);
+            LOGGER.info("User update: " + user);
+        }
+
+        return "redirect:/admin";
+    }
+
+    @PostMapping("/delete")
+    public String deleteUser(@RequestParam("id") Long id, Principal principal) {
+        User userInSession = userService.getUserByName(principal.getName()).orElseThrow();
         userService.delete(id);
-        return "redirect:/admin/user-list";
+        LOGGER.info(String.format("User with id = {%d} was deleted", id));
+        if (userInSession.getId().equals(id)) {
+            return "redirect:/login";
+        }
+        return "redirect:/admin";
     }
 }

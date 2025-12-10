@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>All users</title>
+</head>
+<body>
+    <h1>Список пользователей</h1>
+
+    <div th:if="${isEmpty}">
+        <p>Список пользователей пуст.</p>
+    </div>
+
+    <div th:unless="${isEmpty}">
+        <ul>
+            <li th:each="user : ${userList}">
+                <a th:href="@{/admin/info(id=${user.id})}">
+                    <strong>Имя:</strong> <span th:text="${user.name}">Name</span><br>
+                    <strong>Пол:</strong> <span th:text="${user.sex}">Sex</span><br>
+                    <strong>Возраст:</strong> <span th:text="${user.age}">Age</span><br>
+                    <strong>Роль:</strong> <span th:text="${#strings.listJoin(user.rolesAsString, ', ')}">Role</span><br>
+                </a>
+                <hr>
+            </li>
+        </ul>
+    </div>
+    <div>
+        <a th:href="@{admin/create}">Создать пользователя</a>
+    </div>
+
+    <div>
+        <form th:action="@{/logout}" method="post">
+            <button type="submit">Выйти</button>
+        </form>
+    </div>
+</body>
+</html>

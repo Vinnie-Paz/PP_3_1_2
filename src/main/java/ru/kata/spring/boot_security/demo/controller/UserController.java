@@ -1,52 +1,66 @@
-package ru.kata.spring.boot_security.demo.controller;
+package ru.kata.spring.boot_security.demo.controllers;
 
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+/*
+UserController предназначен для доступа пользователей с ролью ROLE_USER
+Пользователь может менять свои данные по желанию (кроме присвоенной роли)
+Пользователь НЕ может создавать, удалять, изменять новых или других user'ов
+*/
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import ru.kata.spring.boot_security.demo.entitys.User;
-import ru.kata.spring.boot_security.demo.service.UserService;
+import ru.kata.spring.boot_security.demo.hiber.models.User;
+import ru.kata.spring.boot_security.demo.hiber.services.UserService;
 
+import java.util.Optional;
+import java.util.logging.Logger;
 
 @Controller
-@RequestMapping("/user")
+@RequestMapping("/users")
 public class UserController {
 
-    private final UserService userService;
+    private static final Logger LOGGER = Logger.getLogger(UserController.class.getName());
 
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
+    @Autowired
+    UserService userService;
 
-    @GetMapping("/user-page")
-    public String userPage(Model model, @AuthenticationPrincipal UserDetails loggedUser) {
-        User user = userService.findByUsername(loggedUser.getUsername());
-        model.addAttribute("user", user);
-        return "user-page";
-    }
+    @GetMapping("/info")
+    public String userInfo(Model model) {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
-    @GetMapping("/edit")
-    public String editUserPage(Model model, @AuthenticationPrincipal org.springframework.security.core.userdetails.User loggedUser) {
-        User user = userService.findByUsername(loggedUser.getUsername());
-        model.addAttribute("user", user);
-        return "edit-user";
-    }
+        if (principal instanceof UserDetails) {
+            String name = ((UserDetails) principal).getUsername();
+            Optional<User> user = userService.getUserByName(name);
 
-    @PatchMapping("/edit")
-    public String patchUser(@ModelAttribute("user") User user) {
-        try {
-            userService.update(user.getId(), user);
-        } catch (Exception e) {
-            throw new RuntimeException("Error updating user", e);
+            if (user.isEmpty()) {
+                return "userNotFound";
+            }
+
+            model.addAttribute("user", user.get());
+            return "user/userInfo";
         }
-
-        return "redirect:/user/user-page";
+        return "userNotFound";
     }
 
-    @PostMapping("/update")
-    public String updateUser(@ModelAttribute("user") User user) {
-        userService.update(user.getId(), user);
-        return "redirect:/user";
+    @GetMapping("/update")
+    public String updateUserForm(@RequestParam("id") Long id, Model model) {
+        Optional<User> user = userService.getUserById(id);
+        if (user.isEmpty()) {
+            LOGGER.warning(String.format("User id = {%d} not found", id));
+            return "userNotFound";
+        }
+        model.addAttribute("user", user.get());
+        return "user/userForm";
     }
+
+    @PostMapping("/save")
+    public String saveUser(@ModelAttribute("user") User user) {
+        userService.update(user);
+        LOGGER.info("User update: " + user);
+        return "redirect:/users/info";
+    }
+
 }
